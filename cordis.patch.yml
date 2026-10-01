@@ -1,0 +1,16 @@
+# dsh-browser 的 bundle patch
+#
+# DSH 加载这个 bundle 时，会应用本文件：往 profile 里插入一条 loader entry。
+#
+#   id   = browser        插件实例 id（卸载后这条 entry 也随之消失）
+#   name = dsh-browser    包名；DSH 按 profile 目录解析它，
+#                         所以安装时必须存在 <profile>/node_modules/dsh-browser
+#                         —— install.mjs 负责建这个链接（Windows 用 junction，免管理员）
+#
+# 这条 entry 不会写进 profile 自己的 cordis.patch.yml：
+# bundle 的 patch 是随包发布的，卸载时只要把 bundle 从 profile 摘掉，条目自动消失，
+# 不会在用户配置里留下任何残渣。
+- insert:
+    - id: browser
+      name: dsh-browser
+      config: {}
