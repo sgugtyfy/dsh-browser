@@ -1,6 +1,6 @@
 {
   "name": "dsh-browser",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "DSH 浏览器桥：连接你本机开着远程调试端口(--remote-debugging-port)的 Chrome / Edge（CDP，零依赖，含 MCP 适配器）",
   "type": "module",
   "main": "./lib/index.js",
