@@ -1,7 +1,10 @@
 # dsh-browser —— DSH 原生浏览器控制插件
 
-让 DSH 里的 AI **直接操作你本机已登录的 Chrome / Edge**：读页面、点按钮、填表单、执行 JS、截图。
-登录态不是"复制过来"的，而是**同一份 profile 数据、实时同步**。
+让 DSH 里的 AI **操作浏览器**：读页面、点按钮、填表单、执行 JS、截图。
+
+> ⚠️ **v0.1.1 重要变更**：不再使用你的日常 profile。v0.1.0 用 junction 绕过 Chromium 136+ 限制的做法
+> 实测会**清空用户的 cookie**（登录态全丢、密码不受影响），已彻底移除。现在使用插件自带的独立 profile，
+> 详见 [下文说明](#️-v011-起不再使用你的真实-profile必读)。
 
 - **零依赖**：只用 Node 内置能力（`fetch` / `WebSocket`），不需要 `pnpm install`
 - **可一键卸载**：`node uninstall.mjs`，摘除时只删链接，不动你的浏览器数据
@@ -93,36 +96,43 @@ node uninstall.mjs --dry-run
 
 ---
 
-## 原理：怎么在保住登录态的同时开出调试端口
+## ⚠️ v0.1.1 起：不再使用你的真实 profile（必读）
 
-Chromium **136+** 有安全改动：`--user-data-dir` 指向**默认 profile 目录**时，
-`--remote-debugging-port` 会被**静默丢弃**——参数收下了（连渲染子进程命令行里都带着），
-但 DevTools 服务器根本不启动，端口永远不开。本机 Chrome 154.0.8037.58 实测复现。
+**v0.1.0 的「用 junction 指向真实 profile」做法有破坏性，已被实测证明会清空用户 cookie，现予移除。**
 
-网上常见的绕法是复制一份 profile，代价是登录态会和日常浏览器逐渐脱节。
+Chromium **136+** 的改动：`--user-data-dir` 指向**默认 profile 目录**时，`--remote-debugging-port` 会被静默丢弃。
+v0.1.0 曾用「目录联接（junction）换一种路径写法」绕过这个检查 —— 端口确实能开出来，但代价是：
 
-**本插件的做法：目录联接（junction）。** 给同一个物理目录另起一个路径，再把它传给 `--user-data-dir`：
+**实测事故（Windows，Edge 154 + Chrome 154）**：用 junction 路径启动后，两个浏览器的 cookie 库都被大面积清空：
 
-```
-~/.dsh-browser-links/chrome-userdata
-        └─(junction)─> %LOCALAPPDATA%\Google\Chrome\User Data
-```
+| profile | 文件大小 | 空闲页占比 | 剩余 cookie | 后果 |
+|---|---|---|---|---|
+| Edge `Profile 7` | 928 KB | **222/230（96%）** | 26 条 | 所有站点登录态丢失 |
+| Chrome `Profile 1` | 576 KB | **128/137（93%）** | 41 条 | 同上 |
 
-该检查是按**路径字符串**做的，换个写法就通过了。实测结果：
+而密码库（Login Data，110 条）与站点数据（Local Storage 16 MB / IndexedDB 75 MB）**完好无损** ——
+这正是 Chromium「cookie 解不开就直接删除」的行为特征：cookie 加密密钥与**用户数据目录路径**绑定，
+换成 junction 的路径写法后解不开，于是被丢弃。
 
-```
-PORT 9333 OPEN => Chrome/154.0.8037.58  webSocketDebuggerUrl: ws://127.0.0.1:9333/devtools/browser/...
-```
+**所以 v0.1.1 做了三件事：**
 
-**数据是同一份**：你在日常浏览器里登录/退出的任何站点，AI 这边立刻是同一状态。
+1. `profile: "real"` 移除，调用会直接报错并说明原因
+2. 唯一模式是 `profile: "dedicated"`（默认）：插件目录下的**独立 profile**
+   （`<插件目录>/profiles/chrome`、`<插件目录>/profiles/edge`）
+3. `browser_status` 会检测旧版本残留的 junction 并警告删除（`node uninstall.mjs --purge`）
 
-> 链接目录放在插件目录**之外**，是为了避免以后递归删除插件目录时误伤真实 profile。
+### 「那 AI 还能操作我已登录的浏览器吗？」
 
-### 代价（必须知道）
+能，但要用**不碰 profile 的方式**：写一个浏览器扩展做桥接（扩展跑在浏览器内部，通过本机 WebSocket
+连到插件）。它完全不接触 `--user-data-dir`，因此没有任何 cookie 风险 —— 这是 v0.2 的计划。
 
-- Chromium 单实例 + profile 独占锁：**启动时必须先完全退出该浏览器**，两边不能同时开同一 profile。
-- 开了调试端口后，**本机任何进程都能控制这个已登录的浏览器**（这正是 Chrome 当初封锁它的原因）。
-  不用时建议关掉；想要隔离就用 `browser_launch` 的 `profile: "dedicated"`。
+在此之前，想让 AI 操作需要登录的站点：用插件启动的独立 profile 浏览器，**在里面登录一次**，
+之后长期有效，且与你的日常浏览器互不影响。
+
+### 其他代价
+
+- 独立 profile 里**没有**你日常浏览器的登录态，需要重新登录一次（这是刻意的隔离）
+- 开了调试端口后，**本机任何进程都能控制那个浏览器实例**（这正是 Chrome 当初封锁它的原因）。不用时建议关掉
 
 ---
 
@@ -190,9 +200,14 @@ dsh-browser/
 | 端口开不出来 | 该浏览器必须**完全退出**后再 `browser_launch`；或传 `restart: true` |
 | 9222 被占用 | 本插件默认用 9333/9334；可用 `DSH_CHROME_DEBUG_PORT` / `DSH_EDGE_DEBUG_PORT` 改 |
 | 想换浏览器路径 | `DSH_CHROME_PATH` / `DSH_EDGE_PATH` |
-| 想换默认 profile | `DSH_CHROME_PROFILE` / `DSH_EDGE_PROFILE` |
-| 想换链接目录 | `DSH_BROWSER_LINK_ROOT` |
+| 想换调试端口 | `DSH_CHROME_DEBUG_PORT` / `DSH_EDGE_DEBUG_PORT` |
 | 关掉诊断日志 | `DSH_BROWSER_DIAG=""` |
+
+## 更新日志
+
+- **v0.1.1**：移除 `profile:"real"`（junction 方案实测会清空用户 cookie）；默认且唯一使用独立 profile；
+  `browser_status` 增加旧 junction 残留告警
+- **v0.1.0**：首个版本
 
 ## 许可
 
