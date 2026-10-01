@@ -1,12 +1,17 @@
-# dsh-browser —— DSH 原生浏览器控制插件
+# dsh-browser —— DSH 浏览器桥
 
-让 DSH 里的 AI **操作浏览器**：读页面、点按钮、填表单、执行 JS、截图。
+让 DSH 里的 AI **连上你自己开着远程调试端口的浏览器**：读页面、点按钮、填表单、执行 JS、截图。
 
-> ⚠️ **v0.1.1 重要变更**：不再使用你的日常 profile。v0.1.0 用 junction 绕过 Chromium 136+ 限制的做法
-> 实测会**清空用户的 cookie**（登录态全丢、密码不受影响），已彻底移除。现在使用插件自带的独立 profile，
-> 详见 [下文说明](#️-v011-起不再使用你的真实-profile必读)。
+**插件是「桥」，不是「浏览器管理器」**：你自己带 `--remote-debugging-port=<端口>` 启动 Chrome / Edge
+（或双击仓库里的 `launch-chrome.cmd` / `launch-edge.cmd`），插件负责扫端口、连上去、把工具给 AI。
+它**不需要知道**你用什么 profile，也不会去动你的浏览器数据。
+
+> ⚠️ **历史事故，务必知道**：v0.1.0 曾用 junction（目录联接）把调试端口开在用户的**真实 profile** 上，
+> 实测导致 Chromium **清空用户的 cookie**（登录态全丢、密码和站点数据不受影响）。该模式已在 v0.1.1 彻底移除，
+> 现在插件只连你自己启动的浏览器。详见[下文](#️-关于用户真实-profile的重要警告)。
 
 - **零依赖**：只用 Node 内置能力（`fetch` / `WebSocket`），不需要 `pnpm install`
+- **不管 profile**：连哪个浏览器、用哪个 profile，完全由你启动时决定
 - **可一键卸载**：`node uninstall.mjs`，摘除时只删链接，不动你的浏览器数据
 - **可分享**：整个目录拷给别人，`node install.mjs` 即可（Windows / macOS 路径都适配）
 - **顺带兼容 MCP**：`mcp/server.mjs` 能被 Claude Code、Codex 等任何 MCP 客户端挂载
@@ -76,8 +81,8 @@ node uninstall.mjs --dry-run
 
 | 工具 | 用途 |
 |---|---|
-| `browser_status` | 查两个浏览器的端口 / 版本 / 标签页数（排查第一步） |
-| `browser_launch` | 启动浏览器并开好调试端口（`profile: real \| dedicated`，`restart: true` 可先关掉在跑的） |
+| `browser_status` | **扫描调试端口，列出能连上的端点**（浏览器 / 版本 / 标签页数 / 该端点用的 user-data-dir） |
+| `browser_launch` | 【可选】替你起一个带调试端口的浏览器（默认独立 profile，也能用 `userDataDir` 指定；指向主 profile 会被拒绝） |
 | `browser_tabs` | 列出标签页，`active: true` 是用户正在看的那个 |
 | `browser_open` | 打开网址（复用当前标签页 / 新开 / 后台新开不抢焦点） |
 | `browser_read` | **读正文纯文本**（默认 6000 字符，省 token 主力） |
@@ -203,12 +208,17 @@ dsh-browser/
 | 没有 `browser_*` 工具 | 重启 DSH 桌面端；看诊断日志 `%TEMP%\dsh-browser.log` 有没有 `apply()` 记录 |
 | 端口开不出来 | 该浏览器必须**完全退出**后再 `browser_launch`；或传 `restart: true` |
 | 9222 被占用 | 本插件默认用 9333/9334；可用 `DSH_CHROME_DEBUG_PORT` / `DSH_EDGE_DEBUG_PORT` 改 |
-| 想换浏览器路径 | `DSH_CHROME_PATH` / `DSH_EDGE_PATH` |
-| 想换调试端口 | `DSH_CHROME_DEBUG_PORT` / `DSH_EDGE_DEBUG_PORT` |
+| 想扫描别的端口 | `DSH_BROWSER_PORTS=9333,9222,8080`（逗号分隔） |
+| 想换浏览器可执行文件 | `DSH_CHROME_PATH` / `DSH_EDGE_PATH` |
+| 想换 `browser_launch` 的默认端口 | `DSH_CHROME_DEBUG_PORT` / `DSH_EDGE_DEBUG_PORT` |
+| 想换独立 profile 的位置 | `DSH_BROWSER_PROFILE_ROOT` |
 | 关掉诊断日志 | `DSH_BROWSER_DIAG=""` |
 
 ## 更新日志
 
+- **v0.1.2**：改成「桥」——不再假定浏览器由插件启动，改为**扫描端口发现端点**（`browser` 参数可传
+  `chrome` / `edge` / 端口号）；独立 profile 移到 `~/.dsh-browser-profiles/`（升级插件不再丢登录态，
+  旧目录自动迁移）；`browser_launch` 支持 `port` / `userDataDir`，并**拒绝**指向浏览器主 profile 目录
 - **v0.1.1**：移除 `profile:"real"`（junction 方案实测会清空用户 cookie）；默认且唯一使用独立 profile；
   `browser_status` 增加旧 junction 残留告警
 - **v0.1.0**：首个版本

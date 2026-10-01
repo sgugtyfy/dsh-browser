@@ -1,7 +1,7 @@
 {
   "name": "dsh-browser",
-  "version": "0.1.1",
-  "description": "DSH 原生浏览器控制插件：直接操作你本机已登录的 Chrome / Edge（CDP，零依赖，含 MCP 适配器）",
+  "version": "0.1.2",
+  "description": "DSH 浏览器桥：连接你本机开着远程调试端口(--remote-debugging-port)的 Chrome / Edge（CDP，零依赖，含 MCP 适配器）",
   "type": "module",
   "main": "./lib/index.js",
   "license": "MIT",

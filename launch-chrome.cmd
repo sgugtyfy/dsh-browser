@@ -2,21 +2,28 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 rem ============================================================
-rem  启动 Chrome 并开好调试端口（使用插件自带的【独立 profile】）
+rem  启动 Chrome 并开好远程调试端口（插件作为「桥」连上来）
 rem
-rem  为什么不直接用你日常的 profile：
-rem  Chromium 136+ 会拒绝「默认 profile 目录」的调试端口。早期版本用 junction
-rem  换路径写法绕过 —— 实测那会让 Chromium 清空 cookie（登录态全丢），已废弃。
-rem  独立 profile 只需要在里面登录一次，之后长期有效，且与你日常浏览器互不影响。
+rem  这是给 AI 用的浏览器：在窗口里登录一次，登录态长期保留。
+rem  （不用你日常那个 profile —— Chromium 136+ 会拒绝在默认目录上开调试端口，
+rem    而用 junction 之类绕过会清空 cookie，实测事故，已废弃。）
 rem ============================================================
 
 set PORT=9333
 set EXE=C:\Program Files\Google\Chrome\Application\chrome.exe
-set UDD=%~dp0profiles\chrome
+set UDD=%USERPROFILE%\.dsh-browser-profiles\chrome
+set OLD=%~dp0profiles\chrome
 
 if not exist "%EXE%" (
   echo [错误] 找不到 Chrome: "%EXE%"
   pause & exit /b 1
+)
+
+rem 旧版本把 profile 放在插件包内，这里自动搬一次
+if not exist "%UDD%\." if exist "%OLD%\." (
+  echo 迁移旧的独立 profile: %OLD%  --^>  %UDD%
+  if not exist "%USERPROFILE%\.dsh-browser-profiles" mkdir "%USERPROFILE%\.dsh-browser-profiles"
+  move "%OLD%" "%UDD%" >nul
 )
 if not exist "%UDD%" mkdir "%UDD%"
 
@@ -30,8 +37,8 @@ if not errorlevel 1 (
   timeout /t 2 >nul
 )
 
-echo 正在启动 Chrome
-echo   独立 profile: %UDD%
+echo 正在启动 Chrome（调试端口 %PORT%）
+echo   profile: %UDD%
 start "" "%EXE%" --remote-debugging-port=%PORT% --user-data-dir="%UDD%" --no-first-run --no-default-browser-check https://www.bing.com
 
 echo 等待端口就绪（最多 20 秒）...
@@ -51,7 +58,7 @@ exit /b 1
 echo.
 echo [成功] 调试端口已就绪：http://127.0.0.1:%PORT%/json/version
 echo.
-echo 这个窗口用的是独立 profile。需要 AI 帮你操作哪个网站，
-echo 就在这里登录一次（登录状态会长期保留，跟你日常浏览器互不影响）。
+echo 现在 DSH 里的 AI 可以直接连上这个浏览器了。
+echo 需要 AI 帮你操作哪个网站，就在这里登录一次（登录态长期保留）。
 timeout /t 5 >nul
 exit /b 0

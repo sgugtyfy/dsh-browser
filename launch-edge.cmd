@@ -2,17 +2,28 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 rem ============================================================
-rem  启动 Edge 并开好调试端口（使用插件自带的【独立 profile】）
-rem  原理同 launch-chrome.cmd：独立的用户数据目录，不碰你的日常 profile。
+rem  启动 Edge 并开好远程调试端口（插件作为「桥」连上来）
+rem
+rem  这是给 AI 用的浏览器：用户在窗口里登录一次，登录态长期保留。
+rem  （不用你日常那个 profile —— Chromium 136+ 会拒绝在默认目录上开调试端口，
+rem    而用 junction 之类绕过会清空 cookie，实测事故，已废弃。）
 rem ============================================================
 
 set PORT=9334
 set EXE=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
-set UDD=%~dp0profiles\edge
+set UDD=%USERPROFILE%\.dsh-browser-profiles\edge
+set OLD=%~dp0profiles\edge
 
 if not exist "%EXE%" (
   echo [错误] 找不到 Edge: "%EXE%"
   pause & exit /b 1
+)
+
+rem 旧版本把 profile 放在插件包内，这里自动搬一次
+if not exist "%UDD%\." if exist "%OLD%\." (
+  echo 迁移旧的独立 profile: %OLD%  --^>  %UDD%
+  if not exist "%USERPROFILE%\.dsh-browser-profiles" mkdir "%USERPROFILE%\.dsh-browser-profiles"
+  move "%OLD%" "%UDD%" >nul
 )
 if not exist "%UDD%" mkdir "%UDD%"
 
@@ -26,9 +37,9 @@ if not errorlevel 1 (
   timeout /t 2 >nul
 )
 
-echo 正在启动 Edge
-echo   独立 profile: %UDD%
-start "" "%EXE%" --remote-debugging-port=%PORT% --user-data-dir="%UDD%" --no-first-run --no-default-browser-check https://www.bing.com
+echo 正在启动 Edge（调试端口 %PORT%）
+echo   profile: %UDD%
+start "" "%EXE%" --remote-debugging-port=%PORT% --user-data-dir="%UDD%" --no-first-run --no-default-browser-check https://www.bilibili.com
 
 echo 等待端口就绪（最多 20 秒）...
 for /l %%i in (1,1,20) do (
@@ -47,7 +58,7 @@ exit /b 1
 echo.
 echo [成功] 调试端口已就绪：http://127.0.0.1:%PORT%/json/version
 echo.
-echo 这个窗口用的是独立 profile。需要 AI 帮你操作哪个网站，
-echo 就在这里登录一次（登录状态会长期保留，跟你日常浏览器互不影响）。
+echo 现在 DSH 里的 AI 可以直接连上这个浏览器了。
+echo 需要 AI 帮你操作哪个网站，就在这里登录一次（登录态长期保留）。
 timeout /t 5 >nul
 exit /b 0
