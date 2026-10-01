@@ -109,6 +109,10 @@ v0.1.0 曾用「目录联接（junction）换一种路径写法」绕过这个�
 |---|---|---|---|---|
 | Edge `Profile 7` | 928 KB | **222/230（96%）** | 26 条 | 所有站点登录态丢失 |
 | Chrome `Profile 1` | 576 KB | **128/137（93%）** | 41 条 | 同上 |
+| *对照：Chrome `Profile 5`* | 84 KB | *1/21（5%，健康）* | *111 条* | *从未被 junction 启动过，完好* |
+
+最后一行是最有力的旁证：同一个 Chrome 里，被 junction 启动过的 profile 被清空，
+没被碰过的 profile 完全正常。
 
 而密码库（Login Data，110 条）与站点数据（Local Storage 16 MB / IndexedDB 75 MB）**完好无损** ——
 这正是 Chromium「cookie 解不开就直接删除」的行为特征：cookie 加密密钥与**用户数据目录路径**绑定，
