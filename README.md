@@ -216,6 +216,9 @@ dsh-browser/
 
 ## 更新日志
 
+- **v0.1.3**：修 `migrateLegacyProfile` 里 `renameSync` 未导入的 bug（触发迁移会 ReferenceError）；
+  删除 junction 时代的死代码（`legacyJunctionExists` / `LINK_ROOT` / `linkProfile`）；
+  自测脚本改为桥接模型（先扫端口发现端点，没有端点时只提示、不自动开浏览器）
 - **v0.1.2**：改成「桥」——不再假定浏览器由插件启动，改为**扫描端口发现端点**（`browser` 参数可传
   `chrome` / `edge` / 端口号）；独立 profile 移到 `~/.dsh-browser-profiles/`（升级插件不再丢登录态，
   旧目录自动迁移）；`browser_launch` 支持 `port` / `userDataDir`，并**拒绝**指向浏览器主 profile 目录
